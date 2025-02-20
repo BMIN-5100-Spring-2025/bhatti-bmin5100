@@ -1,12 +1,15 @@
+version: '3'
 services:
-  app:
-    image: template:0.0.3
+  coughsense:
+    image: coughsense:0.0.1
     build:
       context: .
       dockerfile: Dockerfile
     environment:
       - INPUT_DIR=/data/input
       - OUTPUT_DIR=/data/output
+      - MODEL_FILENAME=model.pt
+      - AUDIO_FILENAME=PID_82A_54_codec.wav
     volumes:
       - ./data/input:/data/input:ro
       - ./data/output:/data/output
