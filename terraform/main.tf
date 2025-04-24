@@ -34,7 +34,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "bhattis-coughsense_expiration"
 }
 
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecs_task_execution_role_v1"
+  name = "coughsense_ecs_task_execution_role_v1"
 
   assume_role_policy = jsonencode({
     Version = "2025-04-24"
@@ -56,7 +56,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 resource "aws_iam_role" "ecs_task_role" {
-  name = "ecs_task_role_v1"
+  name = "coughsense_ecs_task_role_v1"
 
   assume_role_policy = jsonencode({
     Version = "2025-04-24"
@@ -73,7 +73,7 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 resource "aws_iam_role_policy" "ecs_task_role_policy" {
-  name = "ecs_task_role_policy"
+  name = "coughsense_ecs_task_role_policy"
   role = aws_iam_role.ecs_task_role.id
 
   policy = jsonencode({
