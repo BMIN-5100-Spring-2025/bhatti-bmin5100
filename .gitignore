@@ -11,3 +11,8 @@ venv/
 
 # MacOS
 .DS_Store
+
+data/input/
+aws/
+terraform/
+awscliv2.zip
