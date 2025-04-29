@@ -37,7 +37,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
   name = "coughsense_ecs_task_execution_role_v1"
 
   assume_role_policy = jsonencode({
-    Version = "2025-04-24"
+    Version = "2012-10-17"
     Statement = [
       {
         Action = "sts:AssumeRole"
@@ -59,7 +59,7 @@ resource "aws_iam_role" "ecs_task_role" {
   name = "coughsense_ecs_task_role_v1"
 
   assume_role_policy = jsonencode({
-    Version = "2025-04-24"
+    Version = "2012-10-17"
     Statement = [
       {
         Action = "sts:AssumeRole"
@@ -77,7 +77,7 @@ resource "aws_iam_role_policy" "ecs_task_role_policy" {
   role = aws_iam_role.ecs_task_role.id
 
   policy = jsonencode({
-    Version = "2025-04-24"
+    Version = "2012-10-17"
     Statement = [
       {
         Action = [
@@ -112,27 +112,35 @@ resource "aws_ecs_task_definition" "coughsense-task" {
   container_definitions = jsonencode([
     {
       name      = "coughsense"
-      image     = "061051226319.dkr.ecr.us-east-1.amazonaws.com/coughsense:0.0.1"
+      image     = "061051226319.dkr.ecr.us-east-1.amazonaws.com/coughsense:0.0.3"
       essential = true
       environment = [
-        {
-          name  = "S3_BUCKET_ARN"
-          value = "${aws_s3_bucket.bhattis-coughsense.bucket}"
-        },
-        { name = "ENVIRONMENT"
-          value = "FARGATE"
+        { name = "INPUT_MODE",
+          value = "s3"
         },
         {
-          "name": "RUN_ENV",
-          "value": "fargate"
+          "name": "MODEL_FILENAME",
+          "value": "model.pt"
         },
         {
-          "name": "S3_BUCKET_NAME",
+          "name": "S3_BUCKET",
           "value": "${aws_s3_bucket.bhattis-coughsense.id}"
         },
         {
-          "name":"CAUSE",
-          "value":"1"
+          "name":"AUDIO_FILENAME",
+          "value":"PID_82A_54_codec.wav"
+        },
+        {
+          "name":"S3_KEY",
+          "value":"audio_files/"
+        },
+        {
+          "name":"OUTPUT_DIR",
+          "value":"/data/output"
+        },
+        {
+          "name":"INPUT_DIR",
+          "value":"/data/input"
         }
       ]
       logConfiguration = {
