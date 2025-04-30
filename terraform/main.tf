@@ -165,7 +165,7 @@ resource "aws_s3_bucket_cors_configuration" "bhattis-coughsense_cors_configurati
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "POST", "PUT", "HEAD"]
-    allowed_origins = ["http://localhost:5173", "bmin5100.com", "*.bmin5100"]
+    allowed_origins = ["http://localhost:5173", "bmin-5100.com", "*.bmin-5100.com"]
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
   }
