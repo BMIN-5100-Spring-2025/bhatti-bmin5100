@@ -5,6 +5,9 @@ import os
 import boto3
 import io
 import soundfile as sf
+import json
+import base64
+import glob
 from model import get_resnet18_model
 
 def preprocess(audio, sr=22050, n_mels=128, hop_length=512, duration=1.0, norm_range=(0, 1)):
@@ -130,16 +133,40 @@ if __name__ == '__main__':
     input_filename = os.getenv("AUDIO_FILENAME")
     output_dir = os.getenv("OUTPUT_DIR", "/data/output")  # Default inside container if not set
 
+    session_id = os.getenv('SESSION_ID')
+    print(f"session: {session_id}")
+
+    # parameters = os.getenv('PARAMETERS')
+    # parameters = json.loads(base64.b64decode(parameters).decode('utf-8')) if parameters else None
+    # print(f"parameters: {parameters}")
+
     model_path = os.path.join("/app", model_filename)
 
     input_filename = os.getenv("AUDIO_FILENAME")
     input_file_path = os.path.join(input_directory, input_filename)
+
+    prefix = f"{session_id}/" if session_id else ""
+
     s3 = boto3.client('s3')
 
     if input_mode == "s3":
+        input_prefix = f"{prefix}input/"
+        print(f"Looking for files in s3://{s3_bucket}/{input_prefix}")
+        
 
-        key = os.path.join(s3_key, input_filename)
-        response = s3.get_object(Bucket=s3_bucket, Key=key)
+        response = s3.list_objects_v2(
+            Bucket=s3_bucket,
+            Prefix=input_prefix
+        )
+        
+        if 'Contents' not in response or len(response['Contents']) == 0:
+            raise FileNotFoundError(f"No files found in s3://{s3_bucket}/{input_prefix}")
+        
+        # Get the first audio file found
+        s3_audio_key = response['Contents'][0]['Key']
+        print(f"Found file: {s3_audio_key}")
+        # key = os.path.join(prefix, input_filename)
+        response = s3.get_object(Bucket=s3_bucket, Key=s3_audio_key)
         audio_bytes = response['Body'].read()
         audio_buffer = io.BytesIO(audio_bytes)
         y, sr = sf.read(audio_buffer)
@@ -180,7 +207,9 @@ if __name__ == '__main__':
 
     print(f"Prediction written to {output_path}")
 
-    s3.upload_file(output_path, s3_bucket, "/outputs/output.txt")
+    s3.upload_file(output_path, s3_bucket, f"{prefix}output.txt")
+
+    
 
     # print(f"The cough is likely {pred}")
 

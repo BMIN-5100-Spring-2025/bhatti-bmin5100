@@ -112,7 +112,7 @@ resource "aws_ecs_task_definition" "coughsense-task" {
   container_definitions = jsonencode([
     {
       name      = "coughsense"
-      image     = "061051226319.dkr.ecr.us-east-1.amazonaws.com/coughsense:0.0.3"
+      image     = "061051226319.dkr.ecr.us-east-1.amazonaws.com/coughsense:0.0.4"
       essential = true
       environment = [
         { name = "INPUT_MODE",
@@ -157,4 +157,34 @@ resource "aws_ecs_task_definition" "coughsense-task" {
   ephemeral_storage {
     size_in_gib = 200
   }
+}
+
+resource "aws_s3_bucket_cors_configuration" "bhattis-coughsense_cors_configuration" {
+  bucket = aws_s3_bucket.bhattis-coughsense.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "POST", "PUT", "HEAD"]
+    allowed_origins = ["http://localhost:5173", "bmin5100.com", "*.bmin5100"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+module "invoke_fargate_lambda" {
+  source = "git@github.com:BMIN-5100-Spring-2025/infrastructure.git//invoke_fargate_lambda/terraform"
+
+  project_name = "coughsense"
+  ecs_task_definition_arn = aws_ecs_task_definition.coughsense-task.arn
+  ecs_task_execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+  ecs_task_task_role_arn = aws_iam_role.ecs_task_role.arn
+  ecs_task_definition_container_name = "coughsense"
+
+  ecs_cluster_arn = data.terraform_remote_state.infrastructure.outputs.ecs_cluster_arn
+  ecs_security_group_id = data.terraform_remote_state.infrastructure.outputs.ecs_security_group_id
+  private_subnet_id = data.terraform_remote_state.infrastructure.outputs.private_subnet_id
+  api_gateway_authorizer_id = data.terraform_remote_state.infrastructure.outputs.api_gateway_authorizer_id
+  api_gateway_execution_arn = data.terraform_remote_state.infrastructure.outputs.api_gateway_execution_arn
+  api_gateway_id = data.terraform_remote_state.infrastructure.outputs.api_gateway_id
+  environment_variables = {}
 }
