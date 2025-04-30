@@ -2,6 +2,9 @@ import torch
 import librosa
 import numpy as np
 import os
+import boto3
+import io
+import soundfile as sf
 from model import get_resnet18_model
 
 def preprocess(audio, sr=22050, n_mels=128, hop_length=512, duration=1.0, norm_range=(0, 1)):
@@ -121,18 +124,34 @@ def reduce_noise_and_extract_cough(y, sr, noise_reduction_level=1.5):
 if __name__ == '__main__':
     input_directory = os.getenv("INPUT_DIR")
     model_filename = os.getenv("MODEL_FILENAME")
+    s3_bucket = os.getenv("S3_BUCKET")
+    s3_key = os.getenv("S3_KEY")
+    input_mode = os.getenv("INPUT_MODE")
+    input_filename = os.getenv("AUDIO_FILENAME")
+    output_dir = os.getenv("OUTPUT_DIR", "/data/output")  # Default inside container if not set
+
     model_path = os.path.join("/app", model_filename)
 
     input_filename = os.getenv("AUDIO_FILENAME")
     input_file_path = os.path.join(input_directory, input_filename)
-    
-    # Add file existence check
+    s3 = boto3.client('s3')
 
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Input file not found at {model_path}")
+    if input_mode == "s3":
+
+        key = os.path.join(s3_key, input_filename)
+        response = s3.get_object(Bucket=s3_bucket, Key=key)
+        audio_bytes = response['Body'].read()
+        audio_buffer = io.BytesIO(audio_bytes)
+        y, sr = sf.read(audio_buffer)
+    else:
+        input_directory = os.getenv("INPUT_DIR")
+        input_file_path = os.path.join(input_directory, input_filename)
+        y, sr = librosa.load(input_file_path, sr=None)
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Input file not found at {model_path}")
     
-    if not os.path.exists(input_file_path):
-        raise FileNotFoundError(f"Input file not found at {input_file_path}")
+        if not os.path.exists(input_file_path):
+            raise FileNotFoundError(f"Input file not found at {input_file_path}")
     
     
     class_names = ['neither', 'viral', 'bacterial']
@@ -142,9 +161,6 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
 
-    # Load the audio file
-    y, sr = librosa.load(input_file_path, sr=None)
-
     if librosa.get_duration(y=y, sr=sr) > 1:
         cough = reduce_noise_and_extract_cough(y, sr)
     else:
@@ -152,7 +168,21 @@ if __name__ == '__main__':
 
     pred, probs = predict_audio(model, cough, class_names, device)
 
-    print(f"The cough is likely {pred}")
+    os.makedirs(output_dir, exist_ok=True)  # Create output folder if missing
+
+    output_path = os.path.join(output_dir, "output.txt")
+
+    with open(output_path, "w") as f:
+        f.write(f"Prediction: {pred}\n")
+        f.write("Class probabilities:\n")
+        for cls, prob in probs.items():
+            f.write(f"  {cls}: {prob:.4f}\n")
+
+    print(f"Prediction written to {output_path}")
+
+    s3.upload_file(output_path, s3_bucket, "/outputs/output.txt")
+
+    # print(f"The cough is likely {pred}")
 
 
 
